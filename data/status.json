@@ -1,7 +1,28 @@
 {
-  "_comment": "Skrivs av alkama-infra var 6:e timme. Den här platshållaren är medvetet för gammal, så sidan visar 'Inaktuell data' tills första riktiga mätningen kommer.",
-  "generated_at": "2026-01-01T00:00:00Z",
+  "generated_at": "2026-11-17T17:02:18Z",
   "check_interval_hours": 6,
   "source": "alkama-infra/scripts/estate_check.py",
-  "sites": []
+  "sites": [
+    {
+      "domain": "alkamaindustry.com",
+      "repo": "Alkama",
+      "archetype": "C",
+      "http_status": 200,
+      "tls": "valid",
+      "tls_days_left": 57,
+      "domain_days_left": 143,
+      "health": {
+        "checks": {},
+        "jobs": {},
+        "stalled_jobs": [],
+        "ok": true
+      },
+      "journey": {
+        "ok": true,
+        "partial": true,
+        "message": "submit not exercised: JOURNEY_CONTACT_EMAIL is not set in the app (DigitalOcean)",
+        "duration_ms": 2812
+      }
+    }
+  ]
 }

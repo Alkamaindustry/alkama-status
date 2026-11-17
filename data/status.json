@@ -1,0 +1,7 @@
+{
+  "_comment": "Skrivs av alkama-infra var 6:e timme. Den här platshållaren är medvetet för gammal, så sidan visar 'Inaktuell data' tills första riktiga mätningen kommer.",
+  "generated_at": "2026-01-01T00:00:00Z",
+  "check_interval_hours": 6,
+  "source": "alkama-infra/scripts/estate_check.py",
+  "sites": []
+}

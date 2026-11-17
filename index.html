@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Alkama systemstatus</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1a1a18; --muted: #5f5f5a; --line: #e4e4e0;
+    --ok: #1a7f4b; --warn: #9a6700; --bad: #b3261e; --card: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16161a; --fg:#e8e8e4; --muted:#a3a39d; --line:#2c2c32;
+            --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --card:#1e1e24; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  .logo { height:30px; width:auto; display:block; margin:0 0 1.5rem; }
+  .logo-dark { display:none; }
+  @media (prefers-color-scheme: dark) {
+    .logo { display:none; } .logo-dark { display:block; }
+  }
+  h1 { font-size:1.5rem; margin:0 0 .25rem; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:.9rem; margin:0 0 2rem; }
+  .sub a { color:inherit; }
+  .banner { padding:1rem 1.15rem; border-radius:10px; margin-bottom:1.75rem;
+            border:1px solid var(--line); background:var(--card); }
+  .banner strong { display:block; font-size:1.05rem; }
+  .banner.ok strong { color:var(--ok); }
+  .banner.bad strong { color:var(--bad); }
+  .banner.warn strong, .banner.stale strong { color:var(--warn); }
+  .banner p { margin:.35rem 0 0; color:var(--muted); font-size:.88rem; }
+  h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.07em;
+       color:var(--muted); margin:2rem 0 .75rem; font-weight:600; }
+  ul { list-style:none; margin:0; padding:0; border:1px solid var(--line);
+       border-radius:10px; overflow:hidden; background:var(--card); }
+  li { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem .75rem; padding:.8rem 1rem;
+       border-top:1px solid var(--line); }
+  li:first-child { border-top:0; }
+  .dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+  .name { font-weight:500; }
+  .meta { margin-left:auto; color:var(--muted); font-size:.85rem; text-align:right; }
+  .win { border:1px solid var(--line); border-left:3px solid var(--warn);
+         border-radius:8px; padding:.85rem 1rem; margin-bottom:.6rem; background:var(--card); }
+  .win time { color:var(--muted); font-size:.82rem; }
+  footer { margin-top:3rem; color:var(--muted); font-size:.8rem;
+           border-top:1px solid var(--line); padding-top:1rem; }
+  footer a { color:inherit; }
+  code { font-size:.85em; }
+  @media (max-width: 480px) { .meta { margin-left:1.6rem; text-align:left; flex-basis:100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img class="logo" src="alkama-logo.png" alt="Alkama Industry" width="473" height="117">
+  <img class="logo logo-dark" src="alkama-logo-light.png" alt="Alkama Industry" width="946" height="208">
+  <h1>Systemstatus</h1>
+  <p class="sub">För <a href="https://alkamaindustry.com">alkamaindustry.com</a>. Uppdateras var sjätte timme
+    utifrån en automatisk kontroll. Ingenting här är inskrivet för hand.</p>
+
+  <div id="banner" class="banner"><strong>Läser…</strong></div>
+  <div id="maintenance"></div>
+  <h2>Kontroller</h2>
+  <div id="checks"></div>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+// En sida, en datafil, ingen build. Regeln som styr allt nedan: sidan får
+// aldrig visa grönt utan en mätning bakom sig. Saknad, trasig eller för gammal
+// data är ett eget tillstånd, inte grönt. Samma regel som benbo-status.
+const DOMAIN = 'alkamaindustry.com';
+const MAX_AGE_FACTOR = 2;  // äldre än två kontrollintervall = inaktuell
+
+const el = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ageHours = (iso) => (Date.now() - new Date(iso).getTime()) / 36e5;
+
+// En rad per sak som kan gå fel, i den ordning en kund märker dem.
+function checks(s) {
+  const rows = [];
+  rows.push(s.http_status === 200
+    ? ['ok', 'Webbplatsen', 'svarar']
+    : ['bad', 'Webbplatsen', s.http_status ? `svarar med fel (HTTP ${s.http_status})` : 'svarar inte']);
+  // health finns när /readyz kunde läsas: appen och databasen svarar.
+  if (s.health) {
+    const stalled = (s.health.stalled_jobs || []).length;
+    rows.push(s.health.ok === false
+      ? ['bad', 'Appen och databasen', 'rapporterar fel']
+      : stalled
+        ? ['warn', 'Bakgrundsjobb', `${stalled} har stannat`]
+        : ['ok', 'Appen och databasen', 'svarar']);
+  } else {
+    rows.push(['bad', 'Appen och databasen', 'svarar inte på hälsokontrollen']);
+  }
+  // Beställningsflödet: en robot lägger en testorder som kunden gör.
+  // ok === null betyder att flödet inte kunde köras, och det är inte grönt.
+  const j = s.journey;
+  if (!j) rows.push(['warn', 'Beställningsflödet', 'inte kontrollerat']);
+  else if (j.ok === false) rows.push(['bad', 'Beställningsflödet', 'fungerar inte']);
+  else if (j.ok === null) rows.push(['warn', 'Beställningsflödet', 'kunde inte kontrolleras']);
+  else rows.push(['ok', 'Beställningsflödet', j.partial ? 'fungerar, delvis kontrollerat' : 'en testorder gick igenom']);
+  // Certifikat och domän: går ut i förväg, så de varnar innan de blir fel.
+  if (s.tls !== 'valid') rows.push(['bad', 'Säkerhetscertifikat', 'ogiltigt']);
+  else if (s.tls_days_left != null && s.tls_days_left < 14) rows.push(['warn', 'Säkerhetscertifikat', `går ut om ${s.tls_days_left} dagar`]);
+  else rows.push(['ok', 'Säkerhetscertifikat', s.tls_days_left != null ? `giltigt, ${s.tls_days_left} dagar kvar` : 'giltigt']);
+  if (s.domain_days_left != null) {
+    rows.push(s.domain_days_left < 30
+      ? ['warn', 'Domänregistrering', `går ut om ${s.domain_days_left} dagar`]
+      : ['ok', 'Domänregistrering', `${s.domain_days_left} dagar kvar`]);
+  }
+  return rows;
+}
+
+function renderMaintenance(m) {
+  const now = Date.now();
+  const upcoming = (m?.windows || []).filter(w => new Date(w.ends_at).getTime() > now);
+  if (!upcoming.length) return;
+  el('maintenance').innerHTML = '<h2>Planerat underhåll</h2>' + upcoming.map(w => {
+    const start = new Date(w.starts_at), end = new Date(w.ends_at);
+    const live = now >= start.getTime();
+    return `<div class="win">
+      <strong>${esc(w.summary)}</strong>${live ? ' (pågår nu)' : ''}
+      <div><time>${start.toLocaleString('sv-SE')} till ${end.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}</time></div>
+      ${w.detail ? `<p class="sub" style="margin:.4rem 0 0">${esc(w.detail)}</p>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function render(data) {
+  const site = (data.sites || []).find(s => s.domain === DOMAIN);
+  const age = ageHours(data.generated_at);
+  const stale = age > (data.check_interval_hours || 6) * MAX_AGE_FACTOR;
+  const b = el('banner');
+  if (!site) {
+    b.className = 'banner stale';
+    b.innerHTML = `<strong>Ingen mätdata ännu</strong><p>Den automatiska kontrollen har inte rapporterat.</p>`;
+    return;
+  }
+  const rows = checks(site);
+  el('checks').innerHTML = '<ul>' + rows.map(([state, name, label]) => `<li>
+      <span class="dot ${state}"></span><span class="name">${esc(name)}</span>
+      <span class="meta">${esc(label)}</span></li>`).join('') + '</ul>';
+  const bad = rows.filter(r => r[0] === 'bad'), warn = rows.filter(r => r[0] === 'warn');
+  if (stale) {
+    // Inaktuell data är inte grönt: raderna nedan säger vad som gällde då.
+    b.className = 'banner stale';
+    b.innerHTML = `<strong>Inaktuell data</strong>
+      <p>Senaste mätningen är ${age.toFixed(0)} timmar gammal. Statusen nedan
+      säger vad som gällde då, inte vad som gäller nu.</p>`;
+  } else if (bad.length) {
+    b.className = 'banner bad';
+    b.innerHTML = `<strong>Störning</strong><p>${bad.map(r => esc(r[1])).join(', ')}. Vi arbetar på det.</p>`;
+  } else if (warn.length) {
+    b.className = 'banner warn';
+    b.innerHTML = `<strong>Allt fungerar</strong><p>${warn.map(r => esc(r[1] + ': ' + r[2])).join('. ')}.</p>`;
+  } else {
+    b.className = 'banner ok';
+    b.innerHTML = `<strong>Allt fungerar</strong><p>Alla kontroller gick igenom vid senaste mätningen.</p>`;
+  }
+  el('footer').innerHTML =
+    `Mätt ${new Date(data.generated_at).toLocaleString('sv-SE')}, var ${data.check_interval_hours}:e timme.
+     Frågor: <a href="https://alkamaindustry.com/kontakt">kontakta Alkama</a>.`;
+}
+
+Promise.all([
+  fetch('data/status.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+  fetch('data/maintenance.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([status, maint]) => {
+  renderMaintenance(maint);
+  render(status);
+}).catch(err => {
+  const b = el('banner');
+  b.className = 'banner stale';
+  b.innerHTML = `<strong>Ingen mätdata</strong>
+    <p>Kunde inte läsa statusfilen (${esc(err)}). Sidan visar hellre ingenting än ett påhittat läge.</p>`;
+});
+</script>
+</body>
+</html>

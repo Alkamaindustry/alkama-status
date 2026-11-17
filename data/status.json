@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-17T17:02:18Z",
+  "generated_at": "2026-11-17T17:12:44Z",
   "check_interval_hours": 6,
   "source": "alkama-infra/scripts/estate_check.py",
   "sites": [
@@ -18,10 +18,10 @@
         "ok": true
       },
       "journey": {
-        "ok": true,
-        "partial": true,
-        "message": "submit not exercised: JOURNEY_CONTACT_EMAIL is not set in the app (DigitalOcean)",
-        "duration_ms": 2812
+        "ok": false,
+        "partial": false,
+        "message": "locator.click: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /Skicka orderf\u00f6rfr\u00e5gan/ })\n    - locator resolved to <button disabled class=\"mt-5 w-full rounded-md bg-primary text-primary-foreground py-3 text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed\">Skicka orderf\u00f6rfr\u00e5gan</button>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 100ms\n    39 \u00d7 waiting for element to be visible, enabled and stable\n       - element is not enabled\n     - retrying click action\n       - waiting 500ms\n",
+        "duration_ms": 25735
       }
     }
   ]

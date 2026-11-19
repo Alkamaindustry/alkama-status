@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-18T15:48:03Z",
+  "generated_at": "2026-11-19T00:29:06Z",
   "check_interval_hours": 6,
   "source": "alkama-infra/scripts/estate_check.py",
   "sites": [
@@ -10,12 +10,12 @@
       "http_status": 200,
       "tls": "valid",
       "tls_days_left": 56,
-      "domain_days_left": 142,
+      "domain_days_left": 141,
       "health": {
         "checks": {},
         "jobs": {
           "gdpr_cleanup": {
-            "seconds_since_success": 9436,
+            "seconds_since_success": 16806,
             "overdue": false,
             "consecutive_failures": 0
           }
@@ -26,8 +26,8 @@
       "journey": {
         "ok": true,
         "partial": false,
-        "message": "test order TEST-1795016881365 placed and confirmed",
-        "duration_ms": 5069
+        "message": "test order TEST-1795048144907 placed and confirmed",
+        "duration_ms": 5679
       }
     }
   ]
